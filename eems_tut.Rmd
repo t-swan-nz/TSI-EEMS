@@ -1,0 +1,234 @@
+---
+title: "eems_tut"
+author: "Tom Swan"
+date: "08/02/2021"
+output: html_document
+---
+
+Load libraries
+```{r}
+
+library(tidyverse)
+library(devtools)
+#install_github("dipetkov/eems/plotting/rEEMSplots")
+
+library(rEEMSplots)
+#installing packges to make rEEMSplots work
+#install.packages(c("Rcpp","RcppEigen","raster","rgeos","sp"))
+library(vcfR)
+library(LEA)
+library(adegenet)
+```
+
+Importing vcf into R
+```{r}
+#Firstly importing the whole dataset as a genid file (as done previously for snmf)
+#Notes: “tsi_only2018.vcf” contains 22 individuals over 12 islands. Temporal sampling of Masig-2019 is excluded in this analysis.
+
+vcf2geno(input.file = "tsi_only2018.vcf", "tsi_only2018.admix.geno", force = T)
+
+#reading in the population map
+
+tsi_admix_pop <- read.delim("tsi_only2018.txt", row.names =1, header = F)
+
+#Read in the vcf and convert this to "genid" format to name individuals (indNames function) for sNMF individual bar plots.
+
+vcf_tsi_22 <- read.vcfR("tsi_only2018.vcf", verbose = F)
+View(vcf_tsi_22)
+dim(vcf_tsi_22)
+
+#vcf has read in. Now convert this to genid.
+
+tsi_22_genid <- vcfR2genind(vcf_tsi_22)
+
+#this file is now genid format.
+class(tsi_22_genid)
+
+nLoc(tsi_22_genid) # 25,123 loci
+nInd(tsi_22_genid) # 264 individuals
+```
+Make EEMS input file
+```{r}
+#from https://github.com/ksil91/Ostrea_PopStructure/blob/master/Making_Files/MakingFilesR.ipynb and https://github.com/dipetkov/eems/tree/master/str2diffs
+
+#start with the genotype matrix
+
+Geno <- tsi_22_genid@tab
+
+#Let's convert the matrix to 0-1 labeling. I arbitrarily choose one allele to be the "derived" allele and, for each individual, count how many copies of the derived allele it carries. This is very easy if the tab matrix is of type "codom".
+
+stopifnot(identical(tsi_22_genid@type, 'codom'))
+
+#Since the labeling does not matter for computing differences, I pick the second allele to label as the "derived" allele. That is, I pick all loci whose name ends with .01.
+
+#Geno <- Geno[, str_detect(colnames(Geno), "\\.01$")]
+
+#now run bef2diffs_v1. Reason to run v1. However, the imputation performed by bed2diffs_v2 would not be appropriate if genotypes are not missing at random. Therefore, rather than using bed2diffs_v2, it would be better to clean the data beforehand and to remove SNPs with high missingness, as it is usually done before any analysis of population structure. And then use bed2diffs_v1.
+
+#Here is a function that implements the "pairwise.complete.obs" method, which corresponds to bed2diffs-v1. The straightforward implementation uses a double loop, so would be slow if the sample size is large.
+
+##
+
+bed2diffs_v1 <- function(Geno) {
+  nIndiv <- nrow(Geno)
+  nSites <- ncol(Geno)
+  Diffs <- matrix(0, nIndiv, nIndiv)
+  
+  for (i in seq(nIndiv - 1)) {
+    for (j in seq(i + 1, nIndiv)) {
+      x <- Geno[i, ]
+      y <- Geno[j, ]
+      Diffs[i, j] <- mean((x - y)^2, na.rm = TRUE)
+      Diffs[j, i] <- Diffs[i, j]
+    }
+  }
+  Diffs
+}
+
+#
+
+bed2diffs_v2 <- function(Geno) {
+  nIndiv <- nrow(Geno)
+  nSites <- ncol(Geno)
+  Miss <- is.na(Geno)
+  ## Impute NAs with the column means (= twice the allele frequencies)
+  Mean <- matrix(colMeans(Geno, na.rm = TRUE), ## a row of means
+                 nrow = nIndiv, ncol = nSites, byrow = TRUE) ## a matrix with nIndiv identical rows of means
+  Mean[Miss == 0] <- 0 ## Set the means that correspond to observed genotypes to 0
+  Geno[Miss == 1] <- 0 ## Set the missing genotypes to 0 (used to be NA) 
+  Geno <- Geno + Mean
+  ## Compute similarities
+  Sim <- Geno %*% t(Geno) / nSites
+  SelfSim <- diag(Sim) ## self-similarities
+  vector1s <- rep(1, nIndiv) ## vector of 1s
+  ## This chunk generates a `diffs` matrix
+  Diffs <- SelfSim %*% t(vector1s) + vector1s %*% t(SelfSim) - 2 * Sim
+  Diffs
+  }
+
+##
+
+#now let's compute both versions of the dissimilarity matrix and inspect the eigenvalues.
+Diffs_v1 <- bed2diffs_v1(Geno)
+Diffs_v1 <- round(Diffs_v1, digits = 6)
+
+Diffs_v2 <- bed2diffs_v2(Geno)
+Diffs_v2 <- round(Diffs_v2, digits = 6)
+
+#Check that the dissimilarity matrix has one positive eigenvalue and nIndiv-1 negative eigenvalues, as required by a full-rank Euclidean distance matrix.
+
+sort(round(eigen(Diffs_v1)$values, digits = 2))
+
+sort(round(eigen(Diffs_v2)$values, digits = 2))
+
+#it appears that both are identical. Let's use version 1. 
+
+#Write files for V1
+
+
+write.table(Diffs_v1, "tsi2018-eems.diffs", 
+            col.names = FALSE, row.names = FALSE, quote = FALSE)
+
+```
+
+```{r}
+#import lat and longs for use with EEMS.
+
+tsi_2018_eems_geo <- read.delim("tsi_geo22.txt", header = F)
+
+write.table(tsi_2018_eems_geo, "tsi2018-eems.coord",
+            col.names = FALSE, row.names = FALSE, quote = FALSE)
+
+#note that both files are called the same, but have different file types (.diffs, .coord).
+#I will place both files in the same directory (on the SSH) to run the eems.
+#I do not have a list of habitat boundary points (.outer), but will see if this can run. 
+
+
+```
+
+Working with the rEEMSplots package
+```{r}
+#examining the function
+?eems.plots
+
+ # Use the provided example or supply the path to your own EEMS run.
+extdata_path <- system.file("extdata", package = "rEEMSplots")
+eems_results <- file.path(extdata_path, "EEMS-example")
+name_figures <- file.path(path.expand("~"), "EEMS-example")
+
+
+if (!file.exists(eems_results)) {
+ stop("Check that the rEEMSplots package is installed without errors.")
+}
+
+```
+
+Plotting data
+```{r}
+## Produce the five EEMS figures, with default values for all optional parameters.
+eems.plots(mcmcpath = eems_results,
+plotpath = paste0(name_figures, "-default"),
+longlat = TRUE)
+
+#installed ghostscript and this outputted the data to documents (outputted files ended in downloads folder. I moved this to this R Project). 
+
+```
+
+Project this onto a map
+
+```{r}
+library("rgdal")
+
+
+projection_none <- "+proj=longlat +datum=WGS84"
+projection_mercator <- "+proj=merc +datum=WGS84"
+
+
+## Produce contour plots in the Mercator projection (used by Google Maps)
+eems.plots(mcmcpath = eems_results,
+plotpath = paste0(name_figures, "-cartographic-projections"),
+longlat = TRUE,
+projection.in = projection_none,
+projection.out = projection_mercator)
+
+```
+
+```{r}
+library("rworldmap")
+library("rworldxtra")
+
+## Add a high-resolution geographic map
+
+eems.plots(mcmcpath = eems_results,
+  plotpath = paste0(name_figures, "-geographic-map"),
+  longlat = TRUE,
+  projection.in = projection_none,
+  projection.out = projection_mercator,
+  add.map = TRUE,
+  col.map = "black",
+  lwd.map = 5)
+
+```
+Adding demes to the map
+```{r}
+
+#adding demes is the add.demes function. 
+
+## Choose somewhat impractical colors and shapes for the outline, the grid and the demes.
+eems.plots(mcmcpath = eems_results,
+  plotpath = paste0(name_figures, "-demes-and-edges"),
+  longlat = TRUE,
+  add.grid = TRUE,
+  col.grid = "gray90",
+  lwd.grid = 2,
+  add.outline = TRUE,
+  col.outline = "blue",
+  lwd.outline = 5,
+  add.demes = TRUE,
+  col.demes = "red",
+  pch.demes = 5,
+  min.cex.demes = 0.5,
+  max.cex.demes = 1.5)
+
+```
+
