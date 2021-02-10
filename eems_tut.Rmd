@@ -146,10 +146,45 @@ write.table(tsi_2018_eems_geo, "tsi2018-eems.coord",
 
 ```
 
+Implementing my data with the rEEMSplots package
+```{r}
+if (!file.exists(eems_results)) {
+ stop("Check that the rEEMSplots package is installed without errors.")
+}
+
+#providing path to EEMS run (path_eems) and concatenating the results of all the runs. 
+
+#this path works
+path_eems <- "C:/Users/jc486631/OneDrive - James Cook University/Melbourne/Melbourne/Analysis/2021/eems/TSI-EEMS/results/"
+dirs_eems <- "C:/Users/jc486631/OneDrive - James Cook University/Melbourne/Melbourne/Analysis/2021/eems/TSI-EEMS/results/tsi-eems-deme200"
+
+#path and dirs attempt v2
+
+
+```
+Plotting the TSI data
+```{r}
+eems.plots(mcmcpath = dirs_eems,
+           plotpath = path_eems, "tsi-params-deme200",
+           longlat = T, add.grid=F,add.outline = T, add.demes = T,
+           projection.in = "+proj=longlat +datum=WGS84", projection.out = "+proj=merc +datum=WGS84",
+           add.map = T,add.abline = T, add.r.squared = T)
+
+#this code works.
+eems.plots(mcmcpath = dirs_eems, plotpath = paste0(path_eems, "All-plots"), longlat = T,
+           add.grid=F,add.outline = T, add.demes = T,
+           projection.in = "+proj=longlat +datum=WGS84", projection.out = "+proj=merc +datum=WGS84",
+           add.map = T,add.abline = T, add.r.squared = T)
+
+```
+
+
+
 Working with the rEEMSplots package
 ```{r}
 #examining the function
 ?eems.plots
+
 
  # Use the provided example or supply the path to your own EEMS run.
 extdata_path <- system.file("extdata", package = "rEEMSplots")
@@ -157,9 +192,7 @@ eems_results <- file.path(extdata_path, "EEMS-example")
 name_figures <- file.path(path.expand("~"), "EEMS-example")
 
 
-if (!file.exists(eems_results)) {
- stop("Check that the rEEMSplots package is installed without errors.")
-}
+
 
 ```
 
