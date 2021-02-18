@@ -15,21 +15,17 @@ library(devtools)
 library(rEEMSplots)
 #installing packges to make rEEMSplots work
 #install.packages(c("Rcpp","RcppEigen","raster","rgeos","sp"))
+
 library(vcfR)
 library(LEA)
 library(adegenet)
+library(RColorBrewer)
+library("rworldmap")
+library("rworldxtra")
 ```
 
 Importing vcf into R
 ```{r}
-#Firstly importing the whole dataset as a genid file (as done previously for snmf)
-#Notes: “tsi_only2018.vcf” contains 22 individuals over 12 islands. Temporal sampling of Masig-2019 is excluded in this analysis.
-
-vcf2geno(input.file = "tsi_only2018.vcf", "tsi_only2018.admix.geno", force = T)
-
-#reading in the population map
-
-tsi_admix_pop <- read.delim("tsi_only2018.txt", row.names =1, header = F)
 
 #Read in the vcf and convert this to "genid" format to name individuals (indNames function) for sNMF individual bar plots.
 
@@ -121,10 +117,9 @@ sort(round(eigen(Diffs_v1)$values, digits = 2))
 
 sort(round(eigen(Diffs_v2)$values, digits = 2))
 
-#it appears that both are identical. Let's use version 1. 
+#it appears that both are identical - because there is no missing data. Let's use version 1. 
 
 #Write files for V1
-
 
 write.table(Diffs_v1, "tsi2018-eems.diffs", 
             col.names = FALSE, row.names = FALSE, quote = FALSE)
@@ -156,112 +151,149 @@ if (!file.exists(eems_results)) {
 
 #this path works
 path_eems <- "C:/Users/jc486631/OneDrive - James Cook University/Melbourne/Melbourne/Analysis/2021/eems/TSI-EEMS/results/"
-dirs_eems <- "C:/Users/jc486631/OneDrive - James Cook University/Melbourne/Melbourne/Analysis/2021/eems/TSI-EEMS/results/tsi-eems-deme200"
+dirs_200deems <- c(paste0(path_eems, "tsi2018-200demes-eems-chain1/"), paste0(path_eems, "tsi2018-200demes-eems-chain2/"), paste0(path_eems, "tsi2018-200demes-eems-chain3/"))
+
 
 #path and dirs attempt v2
+```
+Plotting the TSI data 200 deme data
+```{r}
+eems.plots(mcmcpath = dirs_200deems, plotpath = paste0(path_eems, "200deme-All-chain-plots"), longlat = T,
+           add.grid=F,add.outline = T, add.demes = T,
+           projection.in = "+proj=longlat +datum=WGS84", projection.out = "+proj=merc +datum=WGS84",
+           add.map = T,add.abline = T, add.r.squared = T)
+```
+
+Plotting the TSI data 250 deme data (200,000 runs, 100,000 burn-in)
+
+```{r}
+path_eems <- "C:/Users/jc486631/OneDrive - James Cook University/Melbourne/Melbourne/Analysis/2021/eems/TSI-EEMS/results/"
+dirs_250deems <- c(paste0(path_eems, "tsi2018-250demes-eems-chain1/"), paste0(path_eems, "tsi2018-250demes-eems-chain2/"), paste0(path_eems, "tsi2018-250demes-eems-chain3/"))
+```
+
+Plotting the 250 deme (5000,000 runs, 1000,000 burn-in))
+```{r}
+path_eems <- "C:/Users/jc486631/OneDrive - James Cook University/Melbourne/Melbourne/Analysis/2021/eems/TSI-EEMS/results/"
+dirs_250deems_5mill <- c(paste0(path_eems, "tsi2018-250demes5millMCMC-eems-chain1/"), paste0(path_eems, "tsi2018-250demes5millMCMC-eems-chain2/"), paste0(path_eems, "tsi2018-250demes5millMCMC-eems-chain3/"))
 
 
 ```
-Plotting the TSI data
+
 ```{r}
-eems.plots(mcmcpath = dirs_eems,
-           plotpath = path_eems, "tsi-params-deme200",
-           longlat = T, add.grid=F,add.outline = T, add.demes = T,
+
+eems.plots(mcmcpath = dirs_250deems_5mill, plotpath = paste0(path_eems, "250deme-5mill-All-chain-plots"), longlat = T,
+           add.grid=F,add.outline = T, add.demes = T,
            projection.in = "+proj=longlat +datum=WGS84", projection.out = "+proj=merc +datum=WGS84",
            add.map = T,add.abline = T, add.r.squared = T)
 
-#this code works.
-eems.plots(mcmcpath = dirs_eems, plotpath = paste0(path_eems, "All-plots"), longlat = T,
+eems.plots(mcmcpath = dirs_250deems_5mill, plotpath = paste0(path_eems, "250deme-5mill-All-chain-plots"), longlat = T,
+           add.grid=F,add.outline = T, add.demes = F,
+           projection.in = "+proj=longlat +datum=WGS84", projection.out = "+proj=merc +datum=WGS84",
+           add.map = T,add.abline = T, add.r.squared = T)
+```
+
+250 deme has the best R2 value
+
+```{r}
+#now to plot the diversity in colour. 
+
+eems.plots(mcmcpath = dirs_250deems_5mill, plotpath = paste0(path_eems, "250deme-5mill-All-chain-plots"), longlat = T,
+           add.grid=F,add.outline = T, add.demes = T,
+           projection.in = "+proj=longlat +datum=WGS84", projection.out = "+proj=merc +datum=WGS84",
+           add.map = T,add.abline = T, add.r.squared = T, eems.colors = brewer.pal(11, "RdBu"))
+
+
+
+```
+
+Plotting the TSI data 300 deme data (1 mill runs, 100,000 burn-in)
+
+```{r}
+
+#this path works
+path_eems <- "C:/Users/jc486631/OneDrive - James Cook University/Melbourne/Melbourne/Analysis/2021/eems/TSI-EEMS/results/"
+dirs_300deems <- c(paste0(path_eems, "tsi2018-300demes-eems-chain1/"), paste0(path_eems, "tsi2018-300demes-eems-chain2/"), paste0(path_eems, "tsi2018-300demes-eems-chain3/"))
+
+
+```
+
+```{r}
+
+eems.plots(mcmcpath = dirs_300deems, plotpath = paste0(path_eems, "300deme-All-chain-plots"), longlat = T,
            add.grid=F,add.outline = T, add.demes = T,
            projection.in = "+proj=longlat +datum=WGS84", projection.out = "+proj=merc +datum=WGS84",
            add.map = T,add.abline = T, add.r.squared = T)
 
 ```
 
+Plotting the TSI data 1000 deme data (200,000 runs)
 
-
-Working with the rEEMSplots package
 ```{r}
-#examining the function
-?eems.plots
+
+#this path works
+path_eems <- "C:/Users/jc486631/OneDrive - James Cook University/Melbourne/Melbourne/Analysis/2021/eems/TSI-EEMS/results/"
+dirs_1000deems <- c(paste0(path_eems, "tsi2018-1000demes-eems-chain1/"), paste0(path_eems, "tsi2018-1000demes-eems-chain2/"), paste0(path_eems, "tsi2018-1000demes-eems-chain3/"))
 
 
- # Use the provided example or supply the path to your own EEMS run.
-extdata_path <- system.file("extdata", package = "rEEMSplots")
-eems_results <- file.path(extdata_path, "EEMS-example")
-name_figures <- file.path(path.expand("~"), "EEMS-example")
+eems.plots(mcmcpath = dirs_1000deems, plotpath = paste0(path_eems, "1000deme-All-chain-plots"), longlat = T,
+           add.grid=F,add.outline = T, add.demes = T,
+           projection.in = "+proj=longlat +datum=WGS84", projection.out = "+proj=merc +datum=WGS84",
+           add.map = T,add.abline = T, add.r.squared = T)
+```
 
-
+PLotting the diversity rates in a different colour
+```{r}
+eems.plots(mcmcpath = dirs_1000deems, plotpath = paste0(path_eems, "1000deme-All-chain-plots"), longlat = T,
+           add.grid=F,add.outline = T, add.demes = T,
+           projection.in = "+proj=longlat +datum=WGS84", projection.out = "+proj=merc +datum=WGS84",
+           add.map = T,add.abline = T, add.r.squared = T, eems.colors = brewer.pal(11, "RdBu"))
 
 
 ```
 
-Plotting data
-```{r}
-## Produce the five EEMS figures, with default values for all optional parameters.
-eems.plots(mcmcpath = eems_results,
-plotpath = paste0(name_figures, "-default"),
-longlat = TRUE)
 
-#installed ghostscript and this outputted the data to documents (outputted files ended in downloads folder. I moved this to this R Project). 
+Plotting the TSI data 1000 deme data (1 mill runs)
+
+```{r}
+
+dirs_1000deems_1mill <- c(paste0(path_eems, "tsi2018-1000demes-1mill-eems-chain1/"), paste0(path_eems, "tsi2018-1000demes-1mill-eems-chain2/"), paste0(path_eems, "tsi2018-1000demes-1mill-eems-chain3/"))
+
+eems.plots(mcmcpath = dirs_1000deems_1mill, plotpath = paste0(path_eems, "1millMCMC-1000deme-chain-plots"), 
+           longlat = T, add.grid=F,add.outline = T, add.demes = T,
+           projection.in = "+proj=longlat +datum=WGS84", projection.out = "+proj=merc +datum=WGS84",
+           add.map = T,add.abline = T, add.r.squared = T)
+
+#plotting diversity in a different colour:
+
+eems.plots(mcmcpath = dirs_1000deems_1mill, plotpath = paste0(path_eems, "col-1millMCMC-1000deme-chain-plots"), 
+           longlat = T, add.grid=F,add.outline = T, add.demes = T,
+           projection.in = "+proj=longlat +datum=WGS84", projection.out = "+proj=merc +datum=WGS84",
+           add.map = T,add.abline = T, add.r.squared = T, eems.colors = brewer.pal(11, "RdBu"))
 
 ```
 
-Project this onto a map
-
+Yi Tao's package 
 ```{r}
-library("rgdal")
+#setwd("/path~to~your~folder")
 
+Genetic_diff<-"tsi2018-eems.diffs"
+Sample_location<-"tsi2018-eems.coord"
+Outline<-"tsi2018-eems.outer"
 
-projection_none <- "+proj=longlat +datum=WGS84"
-projection_mercator <- "+proj=merc +datum=WGS84"
+#calculate the distance, you may need to replace this with the topological skeleton distance
+length1<-Edgelength(Genetic_diff, Sample_location, Automode)
 
+#this is the decision graph and MDS 
 
-## Produce contour plots in the Mercator projection (used by Google Maps)
-eems.plots(mcmcpath = eems_results,
-plotpath = paste0(name_figures, "-cartographic-projections"),
-longlat = TRUE,
-projection.in = projection_none,
-projection.out = projection_mercator)
+#let's say you have length value=3600
+length1<-10000
+
+#calculate the deme number
+deme<-DemeNumber(Outline,length1)
 
 ```
 
 ```{r}
-library("rworldmap")
-library("rworldxtra")
-
-## Add a high-resolution geographic map
-
-eems.plots(mcmcpath = eems_results,
-  plotpath = paste0(name_figures, "-geographic-map"),
-  longlat = TRUE,
-  projection.in = projection_none,
-  projection.out = projection_mercator,
-  add.map = TRUE,
-  col.map = "black",
-  lwd.map = 5)
+session_info()
 
 ```
-Adding demes to the map
-```{r}
-
-#adding demes is the add.demes function. 
-
-## Choose somewhat impractical colors and shapes for the outline, the grid and the demes.
-eems.plots(mcmcpath = eems_results,
-  plotpath = paste0(name_figures, "-demes-and-edges"),
-  longlat = TRUE,
-  add.grid = TRUE,
-  col.grid = "gray90",
-  lwd.grid = 2,
-  add.outline = TRUE,
-  col.outline = "blue",
-  lwd.outline = 5,
-  add.demes = TRUE,
-  col.demes = "red",
-  pch.demes = 5,
-  min.cex.demes = 0.5,
-  max.cex.demes = 1.5)
-
-```
-
